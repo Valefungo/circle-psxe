@@ -1,3 +1,5 @@
+This README come from the original repository of psxe: https://github.com/allkern/psxe
+
 # psxe
 A simple and portable Sony PlayStation emulator and emulation library written in C
 
