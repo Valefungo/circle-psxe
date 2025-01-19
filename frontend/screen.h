@@ -6,9 +6,7 @@
 
 #include <string.h>
 
-#include "SDL.h"
-#include "SDL_version.h"
-#include "SDL_gamecontroller.h"
+#include "noSDL.h"
 
 typedef struct {
     SDL_Window* window;
