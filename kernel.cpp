@@ -412,7 +412,7 @@ void noSDL_Speaker_Update(int mode, int count)
 
 using namespace std;
 
-CKernel::CKernel (void) : CStdlibAppStdio ("circle-ps1"),
+CKernel::CKernel (void) : CStdlibAppStdio ("circle-psxe"),
         m_pSound (0),
         mStdlibAppMultiCore(CMemorySystem::Get())
 {
