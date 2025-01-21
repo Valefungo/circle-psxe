@@ -339,7 +339,12 @@ int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *
     // TODO
     return SDL_TRUE;
 }
-int SDL_RenderClear(SDL_Renderer * renderer);
+int SDL_RenderClear(SDL_Renderer * renderer)
+{
+    // here we should clear the screen with the render clearcolor
+    // just memset to black
+    memset(renderer->window->surface->pixels, 0, renderer->window->surface->w*renderer->window->surface->h*4);
+}
 int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect);
 int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
                    const double angle, const SDL_Point *center, const SDL_RendererFlip flip);
