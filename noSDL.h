@@ -1,7 +1,7 @@
 #ifndef NOSDL_H_INCLUDED
 #define NOSDL_H_INCLUDED
 
-
+#include "noSDL_scancode.h"
 #include "noSDL_keycode.h"
 #include "noSDL_keysym.h"
 #include "noSDL_pixels.h"
@@ -115,6 +115,14 @@ typedef enum
 } SDL_RendererFlags;
 
 
+typedef unsigned char SDL_bool;
+
+typedef int SDL_RWops;
+
+typedef unsigned char Uint8;
+typedef unsigned short Uint16;
+typedef unsigned int Uint32;
+typedef unsigned int SDL_GrabMode;
 
 typedef struct SDL_button {
     int button;
@@ -173,15 +181,33 @@ typedef struct SDL_DisplayMode
 } SDL_DisplayMode;
 
 typedef struct SDL_Window {
+    char title[16];
+    int x;
+    int y;
+    int w;
+    int h;
+    Uint32 flags;
+    SDL_Surface *surface;
 } SDL_Window;
 typedef struct SDL_Renderer {
+    SDL_Window * window;
+    int index;
+    Uint32 flags;
+    Uint32 clearcolor;
 } SDL_Renderer;
 typedef struct SDL_Texture {
+    SDL_Renderer * renderer;
+    Uint32 format;
+    int access;
+    int w;
+    int h;
 } SDL_Texture;
 
 typedef struct SDL_GameController {
+    int joystick_index;
 } SDL_GameController;
 typedef struct SDL_Joystick {
+    SDL_GameController *gamecontroller;
 } SDL_Joystick;
 
 typedef int SDL_GameControllerID;
@@ -204,20 +230,15 @@ typedef struct SDL_Point {
 
 
 
+extern SDL_Event static_event[6];
+extern SDL_Event static_mod_event[8];
+extern SDL_Event static_mouse_move_event;
+extern SDL_Event static_mouse_button_event[3];
+
+extern int lastmousex;
+extern int lastmousey;
 
 
-
-
-
-
-typedef unsigned char SDL_bool;
-
-typedef int SDL_RWops;
-
-typedef unsigned char Uint8;
-typedef unsigned short Uint16;
-typedef unsigned int Uint32;
-typedef unsigned int SDL_GrabMode;
 
 #define SDL_TRUE 1
 #define SDL_FALSE 0
@@ -226,8 +247,12 @@ typedef unsigned int SDL_GrabMode;
   SDL super weak emulation
 **/
 
+void noSDL_addModDown(int slot, int mod);
+void noSDL_addModUp(int slot, int mod);
 int SDL_PollEvent(SDL_Event *event);
+
 int SDL_Init(Uint32 flags);
+
 int SDL_ShowCursor(int toggle);
 void SDL_Delay(Uint32 ms);
 int SDL_Flip(SDL_Surface *screen);
@@ -242,17 +267,10 @@ SDL_GrabMode SDL_WM_GrabInput(SDL_GrabMode mode);
 SDL_AudioDeviceID SDL_OpenAudioDevice( const char *device, int iscapture, const SDL_AudioSpec *desired, SDL_AudioSpec *obtained, int allowed_changes);
 void SDL_PauseAudioDevice(SDL_AudioDeviceID dev, int pause_on);
 
-SDL_Surface* SDL_CreateRGBSurfaceWithFormat
-    (Uint32 flags, int width, int height, int depth, Uint32 format);
-SDL_Renderer * SDL_CreateRenderer(SDL_Window * window,
-                       int index, Uint32 flags);
-SDL_Texture * SDL_CreateTexture(SDL_Renderer * renderer,
-                                Uint32 format,
-                                int access, int w,
-                                int h);
-SDL_Window * SDL_CreateWindow(const char *title,
-                              int x, int y, int w,
-                              int h, Uint32 flags);
+SDL_Surface* SDL_CreateRGBSurfaceWithFormat (Uint32 flags, int width, int height, int depth, Uint32 format);
+SDL_Renderer * SDL_CreateRenderer(SDL_Window * window, int index, Uint32 flags);
+SDL_Texture * SDL_CreateTexture(SDL_Renderer * renderer, Uint32 format, int access, int w, int h);
+SDL_Window * SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags);
 void SDL_DestroyRenderer(SDL_Renderer * renderer);
 void SDL_DestroyTexture(SDL_Texture * texture);
 void SDL_DestroyWindow(SDL_Window * window);
@@ -260,49 +278,28 @@ void SDL_GameControllerClose(SDL_GameController *gamecontroller);
 SDL_Joystick* SDL_GameControllerGetJoystick(SDL_GameController *gamecontroller);
 SDL_GameController* SDL_GameControllerOpen(int joystick_index);
 int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode * mode);
-int SDL_GetRendererOutputSize(SDL_Renderer * renderer,
-                              int *w, int *h);
+int SDL_GetRendererOutputSize(SDL_Renderer * renderer, int *w, int *h);
 SDL_bool SDL_IsGameController(int joystick_index);
 SDL_JoystickID SDL_JoystickInstanceID(SDL_Joystick *joystick);
 int SDL_NumJoysticks(void);
 void SDL_Quit(void);
 int SDL_RenderClear(SDL_Renderer * renderer);
-int SDL_RenderCopy(SDL_Renderer * renderer,
-                   SDL_Texture * texture,
-                   const SDL_Rect * srcrect,
-                   const SDL_Rect * dstrect);
-int SDL_RenderCopyEx(SDL_Renderer * renderer,
-                   SDL_Texture * texture,
-                   const SDL_Rect * srcrect,
-                   const SDL_Rect * dstrect,
-                   const double angle,
-                   const SDL_Point *center,
-                   const SDL_RendererFlip flip);
+int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect);
+int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
+                   const double angle, const SDL_Point *center, const SDL_RendererFlip flip);
 void SDL_RenderPresent(SDL_Renderer * renderer);
-int SDL_RenderReadPixels(SDL_Renderer * renderer,
-                         const SDL_Rect * rect,
-                         Uint32 format,
-                         void *pixels, int pitch);
-int SDL_RenderSetScale(SDL_Renderer * renderer,
-                       float scaleX, float scaleY);
+int SDL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect, Uint32 format, void *pixels, int pitch);
+int SDL_RenderSetScale(SDL_Renderer * renderer, float scaleX, float scaleY);
 
-SDL_RWops* SDL_RWFromFile(const char *file,
-                          const char *mode);
-int SDL_SaveBMP_RW
-    (SDL_Surface * surface, SDL_RWops * dst, int freedst);
+SDL_RWops* SDL_RWFromFile(const char *file, const char *mode);
+int SDL_SaveBMP_RW(SDL_Surface * surface, SDL_RWops * dst, int freedst);
 #define SDL_SaveBMP(surface, file) \
         SDL_SaveBMP_RW(surface, SDL_RWFromFile(file, "wb"), 1)
 
-int SDL_SetRenderDrawColor(SDL_Renderer * renderer,
-                   Uint8 r, Uint8 g, Uint8 b,
-                   Uint8 a);
-int SDL_SetWindowFullscreen(SDL_Window * window,
-                            Uint32 flags);
-void SDL_SetWindowSize(SDL_Window * window, int w,
-                       int h);
-int SDL_UpdateTexture(SDL_Texture * texture,
-                      const SDL_Rect * rect,
-                      const void *pixels, int pitch);
+int SDL_SetRenderDrawColor(SDL_Renderer * renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+int SDL_SetWindowFullscreen(SDL_Window * window, Uint32 flags);
+void SDL_SetWindowSize(SDL_Window * window, int w, int h);
+int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *pixels, int pitch);
 
 /***
   noSDL additions

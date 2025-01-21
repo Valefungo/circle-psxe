@@ -34,7 +34,7 @@ O = frontend/toml.o frontend/config.o frontend/argparse.o frontend/main.o fronte
     psx/dev/bios.o psx/dev/ic.o psx/dev/timer.o psx/dev/mcd.o psx/dev/spu.o psx/dev/mdec.o psx/dev/ram.o psx/dev/mc2.o
 
 
-OBJS    = main.o kernel.o $(O) $(ZIP) $(PNG)
+OBJS    = main.o kernel.o noSDL.o $(O) $(ZIP) $(PNG)
 
 include $(CIRCLEHOME)/Rules.mk
 

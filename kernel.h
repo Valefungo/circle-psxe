@@ -33,6 +33,12 @@
 #include <circle/multicore.h>
 #include <circle/memory.h>
 
+// if building for raspi 4, define this
+#if RASPPI == 4
+#define TRUE_RASPI_4
+#else
+#undef TRUE_RASPI_4
+#endif
 
 // sound config
 #define SAMPLE_RATE     48000           // overall system clock
@@ -144,5 +150,21 @@ public:
 
     TShutdownMode Run (void);
 };
+
+/**
+ * noSDL needs these thing
+ */
+extern CKernel *this_kernel;
+
+extern int screenshot_count;
+extern int do_screenshot;
+void screenshot(const char *fn, TScreenColor *pixels, int width, int height);
+
+// current very virtual video mode
+extern int virtual_screen_width;
+extern int virtual_screen_height;
+
+#define LOGG_C(...) this_kernel->p_mLogger->Write (this_kernel->GetKernelName(), LogNotice, __VA_ARGS__)
+#define LOGG_K(...) this_kernel->mLogger.Write (this_kernel->GetKernelName(), LogNotice, __VA_ARGS__)
 
 #endif

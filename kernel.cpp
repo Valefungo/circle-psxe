@@ -32,14 +32,6 @@
 #include "noSDL_keysym.h"
 #include "png.h"
 
-// if building for raspi 4, define this
-#if RASPPI == 4
-#define TRUE_RASPI_4
-#else
-#undef TRUE_RASPI_4
-#endif
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -64,14 +56,12 @@ extern "C" {
 // #define LOGG_C(...) printf(__VA_ARGS__)
 // #define LOGG_K(...) printf(__VA_ARGS__)
 
-#define LOGG_C(...) this_kernel->p_mLogger->Write (this_kernel->GetKernelName(), LogNotice, __VA_ARGS__)
-#define LOGG_K(...) this_kernel->mLogger.Write (this_kernel->GetKernelName(), LogNotice, __VA_ARGS__)
-
-static CKernel *this_kernel;
-static int do_screenshot=0;
-static int screenshot_count=0;
-static int virtual_screen_width = 640;
-static int virtual_screen_height = 480;
+// these are shared with noSDL
+CKernel *this_kernel;
+int do_screenshot=0;
+int screenshot_count=0;
+int virtual_screen_width = 640;
+int virtual_screen_height = 480;
 
 void screenshot(const char *fn, TScreenColor *pixels, int width, int height)
 {
@@ -141,274 +131,6 @@ void screenshot(const char *fn, TScreenColor *pixels, int width, int height)
     free(b_rgb);
     fclose(fp);
 }
-
-int SDL_Init(Uint32 flags)
-{
-    // unused, nothing real to initialize
-    return SDL_FALSE;
-}
-
-SDL_AudioDeviceID SDL_OpenAudioDevice( const char *device, int iscapture, const SDL_AudioSpec *desired, SDL_AudioSpec *obtained, int allowed_changes)
-{
-    memcpy(obtained, desired, sizeof(SDL_AudioSpec));
-    return 1;
-}
-
-void SDL_PauseAudioDevice(SDL_AudioDeviceID dev, int pause_on)
-{
-}
-
-int SDL_ShowCursor(int toggle)
-{
-    // unused
-    return toggle;
-}
-
-void SDL_Delay(Uint32 ms)
-{
-    // delay is actually unused but let's take the opportunity to update the USB status
-    this_kernel->MsPause(ms);
-}
-
-void SDL_WM_SetCaption(const char *title, const char *icon)
-{
-    // absolutely not
-}
-
-SDL_GrabMode SDL_WM_GrabInput(SDL_GrabMode mode)
-{
-    // it's always grabbed
-    return mode;
-}
-
-void noSDL_UpdateUSB()
-{
-    this_kernel->UpdateKeyboardAndMouse();
-}
-
-void noSDL_Kernel_Log(const char *line)
-{
-    // easy logging
-    LOGG_C( "KLOG %s", line);
-}
-
-void *noSDL_HighMem_Alloc(long size)
-{
-    return this_kernel->HighMem_Alloc(size);
-}
-
-void noSDL_HighMem_Delete(void *p)
-{
-    return this_kernel->HighMem_Delete(p);
-}
-
-uint64_t noSDL_fileGetSize(char *fname)
-{
-    return this_kernel->fileGetSize(fname);
-}
-
-uint64_t noSDL_fileFullRead(char *fname, void *buffer, uint64_t size)
-{
-    return this_kernel->fileFullRead(fname, buffer, size);
-}
-
-
-SDL_Event static_event[6];
-SDL_Event static_mod_event[8];
-SDL_Event static_mouse_move_event;
-SDL_Event static_mouse_button_event[3];
-int lastmousex=0;
-int lastmousey=0;
-
-static void addModDown(int slot, int mod)
-{
-    static_mod_event[slot].type = SDL_MOD_KEYDOWN;
-    static_mod_event[slot].key_keysym_mod = mod;
-}
-
-static void addModUp(int slot, int mod)
-{
-    static_mod_event[slot].type = SDL_MOD_KEYUP;
-    static_mod_event[slot].key_keysym_mod = mod;
-}
-
-int SDL_PollEvent(SDL_Event *event)
-{
-    if (static_mouse_move_event.type != 0)
-    {
-        // LOGG_C( "MPOLL %d x%d y%d\n", static_mouse_move_event.type, static_mouse_move_event.motion_xrel, static_mouse_move_event.motion_yrel);
-
-        memcpy(event, &static_mouse_move_event, sizeof(SDL_Event));
-        static_mouse_move_event.type = 0;
-        static_mouse_move_event.motion_xrel = 0;
-        static_mouse_move_event.motion_yrel = 0;
-
-        return SDL_TRUE;
-    }
-
-    for (int i=0; i<8; i++)
-    {
-        if (static_mod_event[i].type != 0)
-        {
-            memcpy(event, &static_mod_event[i], sizeof(SDL_Event));
-            static_mod_event[i].type = 0;
-            return SDL_TRUE;
-        }
-    }
-
-    for (int i=0; i<6; i++)
-    {
-        if (static_event[i].type != 0)
-        {
-            // LOGG_C( "KPOLL[%d] %d %04X %02X", i, static_event[i].type, static_event[i].key_keysym_sym, static_event[i].key_keysym_mod);
-
-            memcpy(event, &(static_event[i]), sizeof(SDL_Event));
-            static_event[i].type = 0;
-            return SDL_TRUE;
-        }
-    }
-
-    for (int i=0; i<3; i++)
-    {
-        if (static_mouse_button_event[i].type != 0)
-        {
-            memcpy(event, &static_mouse_button_event[i], sizeof(SDL_Event));
-            static_mouse_button_event[i].type = 0;
-            return SDL_TRUE;
-        }
-    }
-
-    return SDL_FALSE;
-}
-
-void SDL_FreeSurface(SDL_Surface *surface)
-{
-    free(surface);
-}
-
-int SDL_Flip(SDL_Surface *screen)
-{
-    // Nothing to explicitly flip
-    return 0;
-}
-
-int SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect)
-{
-    // LOG_C( "SDL_BlitSurface SRC %d %d %d, %d   DST %d %d %d %d\n", srcrect->x, srcrect->y, srcrect->w, srcrect->h, dstrect->x, dstrect->y, dstrect->w, dstrect->h);
-    // LOG_C( "SDL_BlitSurface %d, %d\n", src->w, src->h);
-
-#ifdef TRUE_RASPI_4
-    // no, let it stay dirty to be able to see any log
-    // this_kernel->wrapClearScreen(BLACK_COLOR);
-
-    this_kernel->wrapDrawImage(0, 0, src->w, src->h, (TScreenColor *)src->pixels);
-#else
-    TScreenColor *scr = (TScreenColor *)src->pixels;
-
-    // emulated raspi 3
-    this_kernel->wrapClearScreen(BLACK_COLOR);
-
-    TScreenColor pix[src->w * src->h];
-    unsigned int temp;
-
-    // C2DGraphics needs the final uint as ARGB, we have xBGR
-    for (int y = 0; y < src->w * src->h; y++) {
-        temp   = scr[y];
-        unsigned char b = (temp >> 16) & 0xFF;
-        unsigned char g = (temp >> 8) & 0xFF;
-        unsigned char r = (temp >> 0) & 0xFF;
-        pix[y] = COLOR32(r, g, b, 255);
-    }
-
-    this_kernel->wrapDrawImage(0, 0, src->w, src->h, pix);
-
-#endif
-
-    if (do_screenshot)
-    {
-        char fn[200] = "";
-        struct stat sb;
-
-        while (screenshot_count < 10000)
-        {
-            sprintf(fn, "screenshot-%04d.png", screenshot_count);
-            if (stat(fn, &sb) == -1) {
-                screenshot(fn, (TScreenColor *)src->pixels, src->w, src->h);
-                break;
-            }
-            else
-                screenshot_count++;
-        }
-
-        do_screenshot = 0;
-    }
-
-    return 0;
-}
-
-SDL_Surface * SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags)
-{
-    // LOG_C( "SDL_SetVideoMode %d, %d, %d, %d\n", width, height, bpp, DEPTH);
-
-    if (height != 0)
-        this_kernel->wrapResize(width, height);
-
-    SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
-    su->w = width;
-    su->h = height;
-    su->pixels = NULL;
-
-    return su;
-}
-
-SDL_Surface * SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int depth, int pitch, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask)
-{
-    // LOG_C( "SDL_CreateRGBSurfaceFrom %d, %d, %d, %d\n", width, height, depth, pitch);
-
-    SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
-    su->w = width;
-    su->h = height;
-    su->pixels = pixels;
-
-    return su;
-}
-
-void noSDL_wrapStartTimer()
-{
-    this_kernel->StartTimer();
-}
-
-unsigned noSDL_wrapCheckTimer()
-{
-    return this_kernel->CheckTimer();
-}
-
-unsigned noSDL_wrapCheckTimerMs()
-{
-    return this_kernel->CheckTimerMs();
-}
-
-void noSDL_wrapScreenLogAt(char *line, unsigned x, unsigned y)
-{
-    this_kernel->DrawColorRect (x, y, 800, 16, BLACK_COLOR);
-    this_kernel->DrawText (x, y, BRIGHT_WHITE_COLOR, line, CKernel::TTextAlign::AlignLeft);
-}
-
-void noSDL_Speaker_Enable(int enable)
-{
-    if (enable)
-        noSDL_wrapScreenLogAt((char*)"S:ON", 10, 10);
-    else
-        noSDL_wrapScreenLogAt((char*)"S:OFF", 10, 10);
-}
-
-void noSDL_Speaker_Update(int mode, int count)
-{
-    char deb[100];
-    sprintf(deb, "S: M:%d, C:%d", mode, count);
-    noSDL_wrapScreenLogAt(deb, 10, 30);
-}
-
 
 using namespace std;
 
@@ -843,14 +565,14 @@ CStdlibApp::TShutdownMode CKernel::Run (void)
 
     // initialize everything
     char *argv[] = { (char *)"psxe",
-        "-L",
-        "100",
-        "-b",
-        "./bios/SCPH1001.BIN",
-        "-a",
-        "-M",
-        "SCPH1001",
-        "--cdrom=games/Ultraman Tiga & Dyna Fighting Evolution - New Generations (Japan).cue"
+        (char *)"-L",
+        (char *)"100",
+        (char *)"-b",
+        (char *)"./bios/SCPH1001.BIN",
+        (char *)"-a",
+        (char *)"-M",
+        (char *)"SCPH1001",
+        (char *)"--cdrom=games/Ultraman Tiga & Dyna Fighting Evolution - New Generations (Japan).cue"
     };
     int retval = psxe_main(1, argv);
 
@@ -974,14 +696,14 @@ static inline int addToLastRawKeys(unsigned char c, unsigned char *a)
 
 void CKernel::KeyStatusHandlerRaw (unsigned char ucModifiers, const unsigned char RawKeys[6])
 {
-        if (ucModifiers & LCTRL)    { if (lc == 0) addModDown(0, KMOD_LCTRL);  lc=1; } else { if (lc == 1) addModUp(0, KMOD_LCTRL);   lc=0; }
-        if (ucModifiers & LSHIFT)   { if (ls == 0) addModDown(1, KMOD_LSHIFT); ls=1; } else { if (ls == 1) addModUp(1, KMOD_LSHIFT);  ls=0; }
-        if (ucModifiers & ALT)      { if (la == 0) addModDown(2, KMOD_LALT);   la=1; } else { if (la == 1) addModUp(2, KMOD_LALT);    la=0; }
-        if (ucModifiers & LWIN)     { if (lw == 0) addModDown(3, KMOD_LMETA);  lw=1; } else { if (lw == 1) addModUp(3, KMOD_LMETA);   lw=0; }
-        if (ucModifiers & RCTRL)    { if (rc == 0) addModDown(4, KMOD_RCTRL);  rc=1; } else { if (rc == 1) addModUp(4, KMOD_RCTRL);   rc=0; }
-        if (ucModifiers & RSHIFT)   { if (rs == 0) addModDown(5, KMOD_RSHIFT); rs=1; } else { if (rs == 1) addModUp(5, KMOD_RSHIFT);  rs=0; }
-        if (ucModifiers & ALTGR)    { if (ra == 0) addModDown(6, KMOD_RALT);   ra=1; } else { if (ra == 1) addModUp(6, KMOD_RALT);    ra=0; }
-        if (ucModifiers & RWIN)     { if (rw == 0) addModDown(7, KMOD_RMETA);  rw=1; } else { if (rw == 1) addModUp(7, KMOD_RMETA);   rw=0; }
+        if (ucModifiers & LCTRL)    { if (lc == 0) noSDL_addModDown(0, KMOD_LCTRL);  lc=1; } else { if (lc == 1) noSDL_addModUp(0, KMOD_LCTRL);   lc=0; }
+        if (ucModifiers & LSHIFT)   { if (ls == 0) noSDL_addModDown(1, KMOD_LSHIFT); ls=1; } else { if (ls == 1) noSDL_addModUp(1, KMOD_LSHIFT);  ls=0; }
+        if (ucModifiers & ALT)      { if (la == 0) noSDL_addModDown(2, KMOD_LALT);   la=1; } else { if (la == 1) noSDL_addModUp(2, KMOD_LALT);    la=0; }
+        if (ucModifiers & LWIN)     { if (lw == 0) noSDL_addModDown(3, KMOD_LMETA);  lw=1; } else { if (lw == 1) noSDL_addModUp(3, KMOD_LMETA);   lw=0; }
+        if (ucModifiers & RCTRL)    { if (rc == 0) noSDL_addModDown(4, KMOD_RCTRL);  rc=1; } else { if (rc == 1) noSDL_addModUp(4, KMOD_RCTRL);   rc=0; }
+        if (ucModifiers & RSHIFT)   { if (rs == 0) noSDL_addModDown(5, KMOD_RSHIFT); rs=1; } else { if (rs == 1) noSDL_addModUp(5, KMOD_RSHIFT);  rs=0; }
+        if (ucModifiers & ALTGR)    { if (ra == 0) noSDL_addModDown(6, KMOD_RALT);   ra=1; } else { if (ra == 1) noSDL_addModUp(6, KMOD_RALT);    ra=0; }
+        if (ucModifiers & RWIN)     { if (rw == 0) noSDL_addModDown(7, KMOD_RMETA);  rw=1; } else { if (rw == 1) noSDL_addModUp(7, KMOD_RMETA);   rw=0; }
 
         // DEBUG ON SCREEN DRAW
         char deb[200] = "";
