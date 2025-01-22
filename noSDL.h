@@ -201,6 +201,8 @@ typedef struct SDL_Texture {
     int access;
     int w;
     int h;
+    int pitch;
+    SDL_Surface *surface;
 } SDL_Texture;
 
 typedef struct SDL_GameController {

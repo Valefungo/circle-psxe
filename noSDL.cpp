@@ -11,6 +11,9 @@
 #include "noSDL.h"
 #include "kernel.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 int SDL_Init(Uint32 flags)
 {
@@ -273,6 +276,8 @@ SDL_Texture * SDL_CreateTexture(SDL_Renderer * renderer, Uint32 format, int acce
     su->access = access;
     su->w = w;
     su->h = h;
+    su->pitch = h;
+    su->surface = SDL_CreateRGBSurfaceWithFormat (renderer->flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
     return su;
 }
 SDL_Window * SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
@@ -297,10 +302,14 @@ void SDL_DestroyRenderer(SDL_Renderer * renderer)
 }
 void SDL_DestroyTexture(SDL_Texture * texture)
 {
+    free(texture->surface->pixels);
+    free(texture->surface);
     free(texture);
 }
 void SDL_DestroyWindow(SDL_Window * window)
 {
+    free(window->surface->pixels);
+    free(window->surface);
     free(window->title);
     free(window);
 }
@@ -344,10 +353,114 @@ int SDL_RenderClear(SDL_Renderer * renderer)
     // here we should clear the screen with the render clearcolor
     // just memset to black
     memset(renderer->window->surface->pixels, 0, renderer->window->surface->w*renderer->window->surface->h*4);
+    return SDL_TRUE;
 }
+
 int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect);
 int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
                    const double angle, const SDL_Point *center, const SDL_RendererFlip flip);
+
+int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect)
+{
+    if (renderer == NULL || texture == NULL || renderer->window->surface->pixels == NULL || texture->surface->pixels == NULL) {
+        return SDL_FALSE; // Errore: parametri non validi
+    }
+
+    // Determina l'area di origine e destinazione
+    int src_x = srcrect ? srcrect->x : 0;
+    int src_y = srcrect ? srcrect->y : 0;
+    int src_w = srcrect ? srcrect->w : texture->w;
+    int src_h = srcrect ? srcrect->h : texture->h;
+
+    int dst_x = dstrect ? dstrect->x : 0;
+    int dst_y = dstrect ? dstrect->y : 0;
+    int dst_w = dstrect ? dstrect->w : src_w;
+    int dst_h = dstrect ? dstrect->h : src_h;
+
+    // Copia i pixel dalla texture al renderer
+    for (int y = 0; y < src_h; ++y) {
+        for (int x = 0; x < src_w; ++x) {
+            // Calcola l'indice del pixel nella texture
+            uint32_t *src_pixel = (uint32_t *)((uint8_t *)texture->surface->pixels + (y + src_y) * texture->pitch + (x + src_x) * sizeof(uint32_t));
+
+            // Calcola l'indice del pixel nel renderer
+            uint32_t *dst_pixel = (uint32_t *)((uint8_t *)renderer->window->surface->pixels + (y + dst_y) * renderer->window->surface->pitch + (x + dst_x) * sizeof(uint32_t));
+
+            // Copia il pixel
+            *dst_pixel = *src_pixel;
+        }
+    }
+
+    return SDL_TRUE; // Successo
+}
+
+int SDL_RenderCopyEx(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *srcrect, const SDL_Rect *dstrect, const double angle, const SDL_Point *center, const SDL_RendererFlip flip)
+{
+    if (renderer == NULL || texture == NULL || renderer->window == NULL || renderer->window->surface == NULL
+        || texture->surface == NULL || renderer->window->surface->pixels == NULL || texture->surface->pixels == NULL) {
+        return -1; // Errore: parametri non validi
+    }
+
+    // Calcolo dei parametri di origine e destinazione
+    int src_x = srcrect ? srcrect->x : 0;
+    int src_y = srcrect ? srcrect->y : 0;
+    int src_w = srcrect ? srcrect->w : texture->w;
+    int src_h = srcrect ? srcrect->h : texture->h;
+
+    int dst_x = dstrect ? dstrect->x : 0;
+    int dst_y = dstrect ? dstrect->y : 0;
+    int dst_w = dstrect ? dstrect->w : src_w;
+    int dst_h = dstrect ? dstrect->h : src_h;
+
+    SDL_Point rotation_center = center ? *center : (SDL_Point){dst_w / 2, dst_h / 2};
+
+    // Calcolo dei coseni e dei seni per la rotazione
+    double radians = angle * M_PI / 180.0;
+    double cos_angle = cos(radians);
+    double sin_angle = sin(radians);
+
+    // Iterazione sui pixel della destinazione
+    for (int y = 0; y < dst_h; ++y) {
+        for (int x = 0; x < dst_w; ++x) {
+            // Calcolo della posizione relativa al centro di rotazione
+            int rel_x = x - rotation_center.x;
+            int rel_y = y - rotation_center.y;
+
+            // Trasformazione inversa per trovare il pixel di origine
+            int src_rel_x = (int)(rel_x * cos_angle + rel_y * sin_angle);
+            int src_rel_y = (int)(-rel_x * sin_angle + rel_y * cos_angle);
+
+            int src_coord_x = src_rel_x + src_w / 2;
+            int src_coord_y = src_rel_y + src_h / 2;
+
+            // Flip se necessario
+            if (flip & SDL_FLIP_HORIZONTAL) {
+                src_coord_x = src_w - 1 - src_coord_x;
+            }
+            if (flip & SDL_FLIP_VERTICAL) {
+                src_coord_y = src_h - 1 - src_coord_y;
+            }
+
+            // Verifica che i pixel di origine siano all'interno dell'area valida
+            if (src_coord_x >= 0 && src_coord_x < src_w && src_coord_y >= 0 && src_coord_y < src_h) {
+                // Calcolo dell'indirizzo del pixel di origine
+                uint32_t *src_pixel = (uint32_t *)((uint8_t *)texture->surface->pixels + (src_coord_y + src_y) * texture->surface->pitch + (src_coord_x + src_x) * sizeof(uint32_t));
+
+                // Calcolo dell'indirizzo del pixel di destinazione
+                uint32_t *dst_pixel = (uint32_t *)((uint8_t *)renderer->window->surface->pixels + (y + dst_y) * renderer->window->surface->pitch + (x + dst_x) * sizeof(uint32_t));
+
+                // Copia del pixel
+                *dst_pixel = *src_pixel;
+            }
+        }
+    }
+
+    return 0; // Successo
+}
+
+
+
+
 void SDL_RenderPresent(SDL_Renderer * renderer)
 {
     SDL_Flip(renderer->window->surface);
