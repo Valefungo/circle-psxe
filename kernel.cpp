@@ -46,6 +46,11 @@ extern "C" {
     void mainloop_multi_core_one();
     void mainloop_multi_core_two();
 
+void _fini()
+{
+  // boh
+}
+
 #ifdef __cplusplus
 }
 #endif
@@ -140,6 +145,13 @@ CKernel::CKernel (void) : CStdlibAppStdio ("circle-psxe"),
 {
     this_kernel = this;
     p_mLogger = &mLogger;   // make this available to C code
+
+    m_pre_pKeyboard = NULL;
+    m_pKeyboard = NULL;
+
+    m_pre_pMouse = NULL;
+    m_pMouse = NULL;
+
     mActLED.Blink (5);  // show we are alive
 }
 
@@ -360,13 +372,18 @@ void CKernel::wrapDrawImage(unsigned nX, unsigned nY, unsigned nWidth, unsigned 
 
 void CKernel::wrapResize(unsigned nWidth, unsigned nHeight)
 {
-    // mScreen.Resize(nWidth, nHeight);
-    virtual_screen_width = nWidth;
-    virtual_screen_height = nHeight;
-
-    if (m_pMouse != 0)
+    if (nWidth != virtual_screen_width || nHeight != virtual_screen_height)
     {
-        ConfigureMouse(TRUE, virtual_screen_width, virtual_screen_height);
+        // mScreen.Resize(nWidth, nHeight);
+        virtual_screen_width = nWidth;
+        virtual_screen_height = nHeight;
+
+        LOGG_K("wrapResize: asked for %d x %d", virtual_screen_width, virtual_screen_height);
+
+        if (m_pMouse != 0 && virtual_screen_width && virtual_screen_height)
+        {
+            ConfigureMouse(TRUE, virtual_screen_width, virtual_screen_height);
+        }
     }
 }
 
@@ -566,15 +583,19 @@ CStdlibApp::TShutdownMode CKernel::Run (void)
     // initialize everything
     char *argv[] = { (char *)"psxe",
         (char *)"-L",
-        (char *)"100",
+        (char *)"0",
         (char *)"-b",
         (char *)"./bios/SCPH1001.BIN",
         (char *)"-a",
         (char *)"-M",
-        (char *)"SCPH1001",
+        (char *)"scph1002",
+// 8
+        (char *)"-s",
+        (char *)"2",
+// 10
         (char *)"--cdrom=games/Ultraman Tiga & Dyna Fighting Evolution - New Generations (Japan).cue"
     };
-    int retval = psxe_main(1, argv);
+    int retval = psxe_main(10, argv);
 
     if (retval >= 0)
     {

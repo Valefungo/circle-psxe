@@ -15,46 +15,59 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#undef LOGG_C
+#define LOGG_C(...) /* nothing */
+
+#define DEBF(f) (f == SDL_PIXELFORMAT_RGBA32 ? "RGBA32" : (f == SDL_PIXELFORMAT_BGR555 ? "BGR555" : "BOH"))
+
 int SDL_Init(Uint32 flags)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // unused, nothing real to initialize
     return SDL_FALSE;
 }
 
 void SDL_Quit(void)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // absolutely not
 }
 
 SDL_AudioDeviceID SDL_OpenAudioDevice( const char *device, int iscapture, const SDL_AudioSpec *desired, SDL_AudioSpec *obtained, int allowed_changes)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     memcpy(obtained, desired, sizeof(SDL_AudioSpec));
     return 1;
 }
 
 void SDL_PauseAudioDevice(SDL_AudioDeviceID dev, int pause_on)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
 }
 
 int SDL_ShowCursor(int toggle)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // unused
     return toggle;
 }
 
 void SDL_Delay(Uint32 ms)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // delay is actually unused but let's take the opportunity to update the USB status
     this_kernel->MsPause(ms);
 }
 
 void SDL_WM_SetCaption(const char *title, const char *icon)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // absolutely not
 }
 
 SDL_GrabMode SDL_WM_GrabInput(SDL_GrabMode mode)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // it's always grabbed
     return mode;
 }
@@ -67,7 +80,7 @@ void noSDL_UpdateUSB()
 void noSDL_Kernel_Log(const char *line)
 {
     // easy logging
-    LOGG_C( "KLOG %s", line);
+    LOGG_C( "KLOG %s %s %s : %s", __FUNCTION__, __LINE__, __FILE__, line);
 }
 
 void *noSDL_HighMem_Alloc(long size)
@@ -112,6 +125,7 @@ void noSDL_addModUp(int slot, int mod)
 
 int SDL_PollEvent(SDL_Event *event)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     if (static_mouse_move_event.type != 0)
     {
         // LOGG_C( "MPOLL %d x%d y%d\n", static_mouse_move_event.type, static_mouse_move_event.motion_xrel, static_mouse_move_event.motion_yrel);
@@ -161,17 +175,24 @@ int SDL_PollEvent(SDL_Event *event)
 
 void SDL_FreeSurface(SDL_Surface *surface)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
+    free(surface->pixels);
     free(surface);
 }
 
 int SDL_Flip(SDL_Surface *screen)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
+
     // Nothing to explicitly flip
+    SDL_BlitSurface(screen, NULL, NULL, NULL);
+
     return 0;
 }
 
 int SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // LOG_C( "SDL_BlitSurface SRC %d %d %d, %d   DST %d %d %d %d\n", srcrect->x, srcrect->y, srcrect->w, srcrect->h, dstrect->x, dstrect->y, dstrect->w, dstrect->h);
     // LOG_C( "SDL_BlitSurface %d, %d\n", src->w, src->h);
 
@@ -226,6 +247,7 @@ int SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_R
 
 SDL_Surface * SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags)
 {
+    LOGG_C( "KLOG %s %d %s - %d %d %d %d", __FUNCTION__, __LINE__, __FILE__, width, height, bpp, flags);
     // LOG_C( "SDL_SetVideoMode %d, %d, %d, %d\n", width, height, bpp, DEPTH);
 
     if (height != 0)
@@ -234,13 +256,15 @@ SDL_Surface * SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags)
     SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
     su->w = width;
     su->h = height;
-    su->pixels = NULL;
+    su->pitch = width;
+    su->pixels = malloc(width*height*4);
 
     return su;
 }
 
 SDL_Surface * SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int depth, int pitch, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // LOG_C( "SDL_CreateRGBSurfaceFrom %d, %d, %d, %d\n", width, height, depth, pitch);
 
     SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
@@ -253,15 +277,18 @@ SDL_Surface * SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int 
 
 SDL_Surface* SDL_CreateRGBSurfaceWithFormat (Uint32 flags, int width, int height, int depth, Uint32 format)
 {
+    LOGG_C( "KLOG %s %d %s - %d %d %d %d %s", __FUNCTION__, __LINE__, __FILE__, flags, width, height, depth, DEBF(format));
     SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
     su->w = width;
     su->h = height;
+    su->pitch = width;
     su->pixels = malloc(width*height*4);
 
     return su;
 }
 SDL_Renderer * SDL_CreateRenderer(SDL_Window * window, int index, Uint32 flags)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     SDL_Renderer *su = (SDL_Renderer *)malloc(sizeof(SDL_Renderer));
     su->window = window;
     su->index = index;
@@ -270,18 +297,20 @@ SDL_Renderer * SDL_CreateRenderer(SDL_Window * window, int index, Uint32 flags)
 }
 SDL_Texture * SDL_CreateTexture(SDL_Renderer * renderer, Uint32 format, int access, int w, int h)
 {
+    LOGG_C( "KLOG %s %d %s - %s %d %d", __FUNCTION__, __LINE__, __FILE__, DEBF(format), w, h);
     SDL_Texture *su = (SDL_Texture *)malloc(sizeof(SDL_Texture));
     su->renderer = renderer;
     su->format = format;
     su->access = access;
     su->w = w;
     su->h = h;
-    su->pitch = h;
+    su->pitch = w;
     su->surface = SDL_CreateRGBSurfaceWithFormat (renderer->flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
     return su;
 }
 SDL_Window * SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
 {
+    LOGG_C( "KLOG %s %d %s - %s %d %d %d %d %d", __FUNCTION__, __LINE__, __FILE__, title, x, y, w, h, flags);
     SDL_Window *su = (SDL_Window *)malloc(sizeof(SDL_Window));
     strncpy(su->title, title, 15);
     su->x = x;
@@ -289,79 +318,159 @@ SDL_Window * SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uin
     su->w = w;
     su->h = h;
     su->flags = flags;
-    su->surface = SDL_CreateRGBSurfaceWithFormat (flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
-
-    // Surprise...
-    SDL_SetVideoMode(w, h, 32, flags);
+    // su->surface = SDL_CreateRGBSurfaceWithFormat (flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
+    su->surface = SDL_SetVideoMode(w, h, 32, flags);
 
     return su;
 }
 void SDL_DestroyRenderer(SDL_Renderer * renderer)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     free(renderer);
 }
 void SDL_DestroyTexture(SDL_Texture * texture)
 {
-    free(texture->surface->pixels);
-    free(texture->surface);
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
+    SDL_FreeSurface(texture->surface);
     free(texture);
 }
 void SDL_DestroyWindow(SDL_Window * window)
 {
-    free(window->surface->pixels);
-    free(window->surface);
-    free(window->title);
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
+    SDL_FreeSurface(window->surface);
     free(window);
 }
 
 int SDL_SetRenderDrawColor(SDL_Renderer * renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // ok ok
     renderer->clearcolor = COLOR32 (r, g, b, a);
     return SDL_TRUE;
 }
 int SDL_SetWindowFullscreen(SDL_Window * window, Uint32 flags)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // sure sure
     return SDL_TRUE;
 }
 
 void SDL_SetWindowSize(SDL_Window * window, int w, int h)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     if (window->surface != NULL)
-        free(window->surface);
+    {
+        SDL_FreeSurface(window->surface);
+    }
 
     window->w = w;
     window->h = h;
-    window->surface = SDL_CreateRGBSurfaceWithFormat (window->flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
-
-    // Surprise...
-    SDL_SetVideoMode(w, h, 32, window->flags);
+    // window->surface = SDL_CreateRGBSurfaceWithFormat (window->flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
+    window->surface = SDL_SetVideoMode(w, h, 32, window->flags);
 }
 
-int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *pixels, int pitch)
+int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *pixels, int stride)
 {
+    LOGG_C( "KLOG %s %d %s - tex f %s stride %d", __FUNCTION__, __LINE__, __FILE__, DEBF(texture->format), stride);
     // this is the real copy of all pixels
     // https://wiki.libsdl.org/SDL2/SDL_UpdateTexture
 
     // we have to support both SDL_PIXELFORMAT_RGB24 and SDL_PIXELFORMAT_BGR555
     // TODO
+
+    if (texture->format == SDL_PIXELFORMAT_RGB24)
+    {
+        uint8_t *tgt = (uint8_t *)texture->surface->pixels;
+        uint8_t *src = (uint8_t *)pixels;
+
+        for (int i=0; i<texture->h; i++)
+        {
+            memcpy(tgt + ((texture->w*4)*i), src+(stride*i), texture->w*4);
+        }
+    }
+    else if (texture->format == SDL_PIXELFORMAT_BGR555)
+    {
+        uint32_t *tgt = (uint32_t *)texture->surface->pixels;
+        uint16_t *src = (uint16_t *)pixels;
+
+        for (int i=0; i<texture->h; i++)
+        {
+            for (int x=0; x<texture->w; x++)
+            {
+                uint16_t c = src[x];
+
+                int r = (c >> 10) & 0x1F;
+                int g = (c >> 5) & 0x1F;
+                int b = c & 0x1F;
+
+                if (i==0 && x==0)
+                {
+                    // printf("P: %04X %02X %02X %02X\n", c, r, g, b);
+                }
+
+                tgt[x] = COLOR32(b*4, g*4, r*4, 255);
+            }
+
+            tgt += texture->w;
+            // src += texture->w;
+            src += stride / 2;
+        }
+    }
+    else
+    {
+        this_kernel->p_mLogger->Write (this_kernel->GetKernelName(), LogNotice, "BAD FORMAT");
+    }
+
     return SDL_TRUE;
 }
 int SDL_RenderClear(SDL_Renderer * renderer)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // here we should clear the screen with the render clearcolor
     // just memset to black
     memset(renderer->window->surface->pixels, 0, renderer->window->surface->w*renderer->window->surface->h*4);
     return SDL_TRUE;
 }
 
-int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect);
-int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
-                   const double angle, const SDL_Point *center, const SDL_RendererFlip flip);
-
 int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect)
 {
+    if (renderer != NULL && renderer->window != NULL && renderer->window->surface != NULL &&
+        texture != NULL && texture->surface != NULL)
+    {
+        /*
+        printf("T: %d %d   S: %d %d    DST: %d %d %d %dg\n",
+               renderer->window->surface->w, renderer->window->surface->h,
+               texture->surface->w, texture->surface->h,
+               dstrect->x, dstrect->y, dstrect->w, dstrect->h);
+        */
+
+        // TODO: must scale texture to render as dstrect says
+
+        uint32_t *t = (uint32_t *)renderer->window->surface->pixels;
+        uint32_t *s = (uint32_t *)texture->surface->pixels;
+
+        for (int y=0; y<renderer->window->surface->h; y++)
+        {
+            for (int x=0; x<renderer->window->surface->w; x++)
+            {
+                t[ (y*renderer->window->surface->w) + x ] = s[(y*texture->surface->w) + x];
+            }
+        }
+
+        // memcpy(renderer->window->surface->pixels, texture->surface->pixels, renderer->window->surface->w*renderer->window->surface->h*4);
+    }
+    return SDL_TRUE;
+}
+
+int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
+                   const double angle, const SDL_Point *center, const SDL_RendererFlip flip)
+{
+    return SDL_RenderCopy(renderer, texture, srcrect, dstrect);
+}
+
+int SDL_RenderCopy_sus(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect)
+{
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     if (renderer == NULL || texture == NULL || renderer->window->surface->pixels == NULL || texture->surface->pixels == NULL) {
         return SDL_FALSE; // Errore: parametri non validi
     }
@@ -374,8 +483,8 @@ int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rec
 
     int dst_x = dstrect ? dstrect->x : 0;
     int dst_y = dstrect ? dstrect->y : 0;
-    int dst_w = dstrect ? dstrect->w : src_w;
-    int dst_h = dstrect ? dstrect->h : src_h;
+    int dst_w = dstrect ? dstrect->w : renderer->window->w;
+    int dst_h = dstrect ? dstrect->h : renderer->window->h;
 
     // Copia i pixel dalla texture al renderer
     for (int y = 0; y < src_h; ++y) {
@@ -394,8 +503,9 @@ int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rec
     return SDL_TRUE; // Successo
 }
 
-int SDL_RenderCopyEx(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *srcrect, const SDL_Rect *dstrect, const double angle, const SDL_Point *center, const SDL_RendererFlip flip)
+int SDL_RenderCopyEx_sus(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *srcrect, const SDL_Rect *dstrect, const double angle, const SDL_Point *center, const SDL_RendererFlip flip)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     if (renderer == NULL || texture == NULL || renderer->window == NULL || renderer->window->surface == NULL
         || texture->surface == NULL || renderer->window->surface->pixels == NULL || texture->surface->pixels == NULL) {
         return -1; // Errore: parametri non validi
@@ -463,16 +573,19 @@ int SDL_RenderCopyEx(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rec
 
 void SDL_RenderPresent(SDL_Renderer * renderer)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     SDL_Flip(renderer->window->surface);
 }
 int SDL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect, Uint32 format, void *pixels, int pitch)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // nope, this is used to make screenshot
     return SDL_TRUE;
 }
 
 int SDL_RenderSetScale(SDL_Renderer * renderer, float scaleX, float scaleY)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // oook...
     return SDL_TRUE;
 }
@@ -481,16 +594,19 @@ int SDL_RenderSetScale(SDL_Renderer * renderer, float scaleX, float scaleY)
 
 void SDL_GameControllerClose(SDL_GameController *gamecontroller)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     free(gamecontroller);
 }
 SDL_Joystick* SDL_GameControllerGetJoystick(SDL_GameController *gamecontroller)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     SDL_Joystick *su = (SDL_Joystick *)malloc(sizeof(SDL_Joystick));
     su->gamecontroller = gamecontroller;
     return su;
 }
 SDL_GameController* SDL_GameControllerOpen(int joystick_index)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     SDL_GameController *su = (SDL_GameController *)malloc(sizeof(SDL_GameController));
     su->joystick_index = joystick_index;
     return su;
@@ -498,6 +614,7 @@ SDL_GameController* SDL_GameControllerOpen(int joystick_index)
 
 int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode * mode)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // LIE HARD
     mode->format = SDL_PIXELFORMAT_RGB24;              /**< pixel format */
     mode->w = virtual_screen_width;                      /**< width, in screen coordinates */
@@ -509,21 +626,25 @@ int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode * mode)
 
 int SDL_GetRendererOutputSize(SDL_Renderer * renderer, int *w, int *h)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     *w = renderer->window->w;
     *h = renderer->window->h;
     return SDL_TRUE;
 }
 SDL_bool SDL_IsGameController(int joystick_index)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // obviously it is...
     return SDL_TRUE;
 }
 SDL_JoystickID SDL_JoystickInstanceID(SDL_Joystick *joystick)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     return joystick->gamecontroller->joystick_index;
 }
 int SDL_NumJoysticks(void)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // obviously we have one...
     return 1;
 }
@@ -531,11 +652,13 @@ int SDL_NumJoysticks(void)
 
 SDL_RWops* SDL_RWFromFile(const char *file, const char *mode)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // sure sure
     return NULL;
 }
 int SDL_SaveBMP_RW(SDL_Surface * surface, SDL_RWops * dst, int freedst)
 {
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // just flag it to be done later
     do_screenshot = 1;
     return SDL_TRUE;

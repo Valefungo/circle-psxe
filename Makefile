@@ -40,8 +40,8 @@ include $(CIRCLEHOME)/Rules.mk
 
 CFLAGS += -I"." -I"psx" -DOS_INFO="$(OS_INFO)" -DREP_VERSION="$(VERSION_TAG)" -DREP_COMMIT_HASH="$(COMMIT_HASH)"
 
-CFLAGS += -I "$(NEWLIBDIR)/include" -I $(STDDEF_INCPATH) -Iinclude -Iextra/minizip -Iextra/minipng -I ../../include -DLOGGING_DISABLED -DNATIVE_BUILD -DPNG_ARM_NEON_OPT=0 -O3
-# CFLAGS += -I "$(NEWLIBDIR)/include" -I $(STDDEF_INCPATH) -Iinclude -Iextra/minizip -Iextra/minipng -I ../../include -DLOGGING_DISABLED -DNATIVE_BUILD -DPNG_ARM_NEON_OPT=0 -ggdb -O0
+# CFLAGS += -I "$(NEWLIBDIR)/include" -I $(STDDEF_INCPATH) -Iinclude -Iextra/minizip -Iextra/minipng -I ../../include -DLOGGING_DISABLED -DNATIVE_BUILD -DPNG_ARM_NEON_OPT=0 -O3
+CFLAGS += -I "$(NEWLIBDIR)/include" -I $(STDDEF_INCPATH) -Iinclude -Iextra/minizip -Iextra/minipng -I ../../include -DLOGGING_DISABLED -DNATIVE_BUILD -DPNG_ARM_NEON_OPT=0 -ggdb -O0
 
 LIBS := "$(NEWLIBDIR)/lib/libm.a" "$(NEWLIBDIR)/lib/libc.a" "$(NEWLIBDIR)/lib/libcirclenewlib.a" \
  	$(CIRCLEHOME)/addon/SDCard/libsdcard.a \

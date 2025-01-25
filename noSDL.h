@@ -181,7 +181,7 @@ typedef struct SDL_DisplayMode
 } SDL_DisplayMode;
 
 typedef struct SDL_Window {
-    char title[16];
+    char title[128];
     int x;
     int y;
     int w;

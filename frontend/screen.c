@@ -91,7 +91,6 @@ void psxe_screen_init(psxe_screen_t* screen, psx_t* psx) {
     screen->texture_height = PSX_GPU_FB_HEIGHT;
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER);
-    SDL_SetRenderDrawColor(screen->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
     screen->controller = screen_find_controller();
 }
@@ -134,6 +133,8 @@ void psxe_screen_reload(psxe_screen_t* screen) {
         SDL_TEXTUREACCESS_STREAMING,
         screen->texture_width, screen->texture_height
     );
+
+    SDL_SetRenderDrawColor(screen->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
     // Check for retina displays
     int width = 0, height = 0;
