@@ -53,6 +53,7 @@ void psx_gpu_init(psx_gpu_t* gpu, psx_ic_t* ic) {
     gpu->vram = (uint16_t*)malloc(PSX_GPU_VRAM_SIZE);
     gpu->empty = malloc(PSX_GPU_VRAM_SIZE);
 
+    memset(gpu->vram, 0, PSX_GPU_VRAM_SIZE);
     memset(gpu->empty, 0, PSX_GPU_VRAM_SIZE);
 
     gpu->state = GPU_STATE_RECV_CMD;

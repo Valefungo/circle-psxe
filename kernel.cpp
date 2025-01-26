@@ -578,7 +578,7 @@ void CStdlibAppMultiCore::Run(unsigned int nCore)
 
 CStdlibApp::TShutdownMode CKernel::Run (void)
 {
-    LOGG_K( "Circle-Halfix - Compile time: " __DATE__ " " __TIME__);
+    LOGG_K( "Circle-psxe - Compile time: " __DATE__ " " __TIME__);
 
     // initialize everything
     char *argv[] = { (char *)"psxe",
@@ -593,9 +593,10 @@ CStdlibApp::TShutdownMode CKernel::Run (void)
         (char *)"-s",
         (char *)"2",
 // 10
-        (char *)"--cdrom=games/Ultraman Tiga & Dyna Fighting Evolution - New Generations (Japan).cue"
+//      (char *)"--cdrom=games/Ultraman Tiga & Dyna Fighting Evolution - New Generations (Japan).cue"
+        (char *)"--cdrom=Bubbob.cue"
     };
-    int retval = psxe_main(10, argv);
+    int retval = psxe_main(11, argv);
 
     if (retval >= 0)
     {

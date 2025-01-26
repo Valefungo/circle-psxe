@@ -182,7 +182,8 @@ void mdec_decode_macroblock(psx_mdec_t* mdec) {
         size_t block_size = (mdec->output_depth == 3) ? 512 : 768;
         size_t size = block_size;
 
-        mdec->output = malloc(size);
+        // STATIC
+        // mdec->output = malloc(size);
 
         rl_decode_block(mdec->yblk, (uint16_t*)mdec->input, mdec->y_quant_table, mdec->scale_table);
 
@@ -211,11 +212,13 @@ void mdec_decode_macroblock(psx_mdec_t* mdec) {
         int block_count = 1;
 
         while (bytes_processed < mdec->input_size) {
+            /* STATIC
             if (!mdec->output) {
                 mdec->output = malloc(block_count * size);
             } else {
                 mdec->output = realloc(mdec->output, block_count * size);
             }
+            */
 
             in = rl_decode_block(mdec->crblk, in, mdec->uv_quant_table, mdec->scale_table);
             in = rl_decode_block(mdec->cbblk, in, mdec->uv_quant_table, mdec->scale_table);
@@ -364,7 +367,8 @@ void psx_mdec_write32(psx_mdec_t* mdec, uint32_t offset, uint32_t value) {
 
                     g_mdec_cmd_table[mdec->cmd >> 29](mdec);
 
-                    free(mdec->input);
+                    // STATIC
+                    // free(mdec->input);
                 }
 
                 break;
@@ -428,7 +432,8 @@ void psx_mdec_write32(psx_mdec_t* mdec, uint32_t offset, uint32_t value) {
                 mdec->input_size = mdec->words_remaining * sizeof(uint32_t);
                 mdec->input_full = 0;
                 mdec->input_index = 0;
-                mdec->input = malloc(mdec->input_size);
+                // STATIC
+                // mdec->input = malloc(mdec->input_size);
             }
         } break;
 

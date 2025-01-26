@@ -171,6 +171,13 @@ typedef struct SDL_Rect {
     int h;
 } SDL_Rect;
 
+typedef struct SDL_FRect {
+    double x;
+    double y;
+    double w;
+    double h;
+} SDL_FRect;
+
 typedef struct SDL_DisplayMode
 {
     uint32_t format;              /**< pixel format */
@@ -179,6 +186,16 @@ typedef struct SDL_DisplayMode
     int refresh_rate;           /**< refresh rate (or zero for unspecified) */
     void *driverdata;           /**< driver-specific data, initialize to 0 */
 } SDL_DisplayMode;
+
+typedef struct SDL_Point {
+    int x;
+    int y;
+} SDL_Point;
+
+typedef struct SDL_FPoint {
+    double x;
+    double y;
+} SDL_FPoint;
 
 typedef struct SDL_Window {
     char title[128];
@@ -191,6 +208,7 @@ typedef struct SDL_Window {
 } SDL_Window;
 typedef struct SDL_Renderer {
     SDL_Window * window;
+    SDL_Point scale;
     int index;
     Uint32 flags;
     Uint32 clearcolor;
@@ -225,12 +243,10 @@ typedef struct SDL_AudioSpec {
 	void *userdata;
 } SDL_AudioSpec;
 
-typedef struct SDL_Point {
-    int x;
-    int y;
-} SDL_Point;
+#define SDL_RectEmpty(X)    ((!(X)) || ((X)->w <= 0) || ((X)->h <= 0))
 
-
+#define SDL_BlitSurface SDL_UpperBlit
+#define SDL_BlitScaled SDL_UpperBlitScaled
 
 extern SDL_Event static_event[6];
 extern SDL_Event static_mod_event[8];
@@ -239,8 +255,6 @@ extern SDL_Event static_mouse_button_event[3];
 
 extern int lastmousex;
 extern int lastmousey;
-
-
 
 #define SDL_TRUE 1
 #define SDL_FALSE 0
@@ -257,9 +271,12 @@ int SDL_Init(Uint32 flags);
 
 int SDL_ShowCursor(int toggle);
 void SDL_Delay(Uint32 ms);
+
 int SDL_Flip(SDL_Surface *screen);
+// this is the true blit to circle kernel
+int noSDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect);
+
 void SDL_FreeSurface(SDL_Surface *surface);
-int SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect);
 SDL_Surface * SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags);
 SDL_Surface * SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int depth, int pitch, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask);
 
@@ -286,6 +303,18 @@ SDL_JoystickID SDL_JoystickInstanceID(SDL_Joystick *joystick);
 int SDL_NumJoysticks(void);
 void SDL_Quit(void);
 int SDL_RenderClear(SDL_Renderer * renderer);
+
+
+void
+SDL_RenderGetViewport(SDL_Renderer * renderer, SDL_Rect * rect);
+
+SDL_bool SDL_IntersectRect(const SDL_Rect * A, const SDL_Rect * B, SDL_Rect * result);
+
+int SDL_UpperBlitScaled(SDL_Surface * src, const SDL_Rect * srcrect, SDL_Surface * dst, SDL_Rect * dstrect);
+int SDL_UpperBlit(SDL_Surface * src, const SDL_Rect * srcrect, SDL_Surface * dst, SDL_Rect * dstrect);
+int SDL_LowerBlitScaled(SDL_Surface * src, SDL_Rect * srcrect, SDL_Surface * dst, SDL_Rect * dstrect);
+
+
 int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect);
 int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
                    const double angle, const SDL_Point *center, const SDL_RendererFlip flip);

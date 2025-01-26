@@ -1,5 +1,4 @@
 
-
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -18,7 +17,21 @@
 #undef LOGG_C
 #define LOGG_C(...) /* nothing */
 
+#define LOG_MALLOC(sz, p)  malloc(sz); LOGG_C("Malloc of %d -> %08X", sz, p);
+#define LOG_FREE(p)  LOGG_C("Free of %08X", p); free(p);
+
 #define DEBF(f) (f == SDL_PIXELFORMAT_RGBA32 ? "RGBA32" : (f == SDL_PIXELFORMAT_BGR555 ? "BGR555" : "BOH"))
+
+#include "noSDL_blitstretch.c"
+
+
+void *noSDL_fakemalloc(int sz)
+{
+}
+
+void noSDL_fakefree(void *p)
+{
+}
 
 int SDL_Init(Uint32 flags)
 {
@@ -126,6 +139,8 @@ void noSDL_addModUp(int slot, int mod)
 int SDL_PollEvent(SDL_Event *event)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
+    noSDL_UpdateUSB();
+
     if (static_mouse_move_event.type != 0)
     {
         // LOGG_C( "MPOLL %d x%d y%d\n", static_mouse_move_event.type, static_mouse_move_event.motion_xrel, static_mouse_move_event.motion_yrel);
@@ -176,8 +191,8 @@ int SDL_PollEvent(SDL_Event *event)
 void SDL_FreeSurface(SDL_Surface *surface)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    free(surface->pixels);
-    free(surface);
+    LOG_FREE(surface->pixels);
+    LOG_FREE(surface);
 }
 
 int SDL_Flip(SDL_Surface *screen)
@@ -185,12 +200,18 @@ int SDL_Flip(SDL_Surface *screen)
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
 
     // Nothing to explicitly flip
-    SDL_BlitSurface(screen, NULL, NULL, NULL);
+    noSDL_BlitSurface(screen, NULL, NULL, NULL);
 
     return 0;
 }
 
-int SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect)
+#ifndef TRUE_RASPI_4
+// the max display size, we just need a buffer
+static TScreenColor pix[1920*1080];
+static unsigned int temp;
+#endif
+
+int noSDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // LOG_C( "SDL_BlitSurface SRC %d %d %d, %d   DST %d %d %d %d\n", srcrect->x, srcrect->y, srcrect->w, srcrect->h, dstrect->x, dstrect->y, dstrect->w, dstrect->h);
@@ -206,9 +227,6 @@ int SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_R
 
     // emulated raspi 3
     this_kernel->wrapClearScreen(BLACK_COLOR);
-
-    TScreenColor pix[src->w * src->h];
-    unsigned int temp;
 
     // C2DGraphics needs the final uint as ARGB, we have xBGR
     for (int y = 0; y < src->w * src->h; y++) {
@@ -250,14 +268,14 @@ SDL_Surface * SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags)
     LOGG_C( "KLOG %s %d %s - %d %d %d %d", __FUNCTION__, __LINE__, __FILE__, width, height, bpp, flags);
     // LOG_C( "SDL_SetVideoMode %d, %d, %d, %d\n", width, height, bpp, DEPTH);
 
-    if (height != 0)
+    if (width != 0 && height != 0)
         this_kernel->wrapResize(width, height);
 
-    SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
+    SDL_Surface *su = (SDL_Surface *)LOG_MALLOC(sizeof(SDL_Surface), su);
     su->w = width;
     su->h = height;
-    su->pitch = width;
-    su->pixels = malloc(width*height*4);
+    su->pitch = width * 4;
+    su->pixels = LOG_MALLOC(width*height*4, su->pixels);
 
     return su;
 }
@@ -267,7 +285,7 @@ SDL_Surface * SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int 
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     // LOG_C( "SDL_CreateRGBSurfaceFrom %d, %d, %d, %d\n", width, height, depth, pitch);
 
-    SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
+    SDL_Surface *su = (SDL_Surface *)LOG_MALLOC(sizeof(SDL_Surface), su);
     su->w = width;
     su->h = height;
     su->pixels = pixels;
@@ -278,27 +296,29 @@ SDL_Surface * SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int 
 SDL_Surface* SDL_CreateRGBSurfaceWithFormat (Uint32 flags, int width, int height, int depth, Uint32 format)
 {
     LOGG_C( "KLOG %s %d %s - %d %d %d %d %s", __FUNCTION__, __LINE__, __FILE__, flags, width, height, depth, DEBF(format));
-    SDL_Surface *su = (SDL_Surface *)malloc(sizeof(SDL_Surface));
+    SDL_Surface *su = (SDL_Surface *)LOG_MALLOC(sizeof(SDL_Surface), su);
     su->w = width;
     su->h = height;
-    su->pitch = width;
-    su->pixels = malloc(width*height*4);
+    su->pitch = width * 4;
+    su->pixels = LOG_MALLOC(width*height*4, su->pixels);
 
     return su;
 }
 SDL_Renderer * SDL_CreateRenderer(SDL_Window * window, int index, Uint32 flags)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    SDL_Renderer *su = (SDL_Renderer *)malloc(sizeof(SDL_Renderer));
+    SDL_Renderer *su = (SDL_Renderer *)LOG_MALLOC(sizeof(SDL_Renderer), su);
     su->window = window;
     su->index = index;
     su->flags = flags;
+    su->scale.x = 1;
+    su->scale.y = 1;
     return su;
 }
 SDL_Texture * SDL_CreateTexture(SDL_Renderer * renderer, Uint32 format, int access, int w, int h)
 {
     LOGG_C( "KLOG %s %d %s - %s %d %d", __FUNCTION__, __LINE__, __FILE__, DEBF(format), w, h);
-    SDL_Texture *su = (SDL_Texture *)malloc(sizeof(SDL_Texture));
+    SDL_Texture *su = (SDL_Texture *)LOG_MALLOC(sizeof(SDL_Texture), su);
     su->renderer = renderer;
     su->format = format;
     su->access = access;
@@ -311,7 +331,7 @@ SDL_Texture * SDL_CreateTexture(SDL_Renderer * renderer, Uint32 format, int acce
 SDL_Window * SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
 {
     LOGG_C( "KLOG %s %d %s - %s %d %d %d %d %d", __FUNCTION__, __LINE__, __FILE__, title, x, y, w, h, flags);
-    SDL_Window *su = (SDL_Window *)malloc(sizeof(SDL_Window));
+    SDL_Window *su = (SDL_Window *)LOG_MALLOC(sizeof(SDL_Window), su);
     strncpy(su->title, title, 15);
     su->x = x;
     su->y = y;
@@ -326,19 +346,19 @@ SDL_Window * SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uin
 void SDL_DestroyRenderer(SDL_Renderer * renderer)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    free(renderer);
+    LOG_FREE(renderer);
 }
 void SDL_DestroyTexture(SDL_Texture * texture)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     SDL_FreeSurface(texture->surface);
-    free(texture);
+    LOG_FREE(texture);
 }
 void SDL_DestroyWindow(SDL_Window * window)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     SDL_FreeSurface(window->surface);
-    free(window);
+    LOG_FREE(window);
 }
 
 int SDL_SetRenderDrawColor(SDL_Renderer * renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
@@ -358,15 +378,20 @@ int SDL_SetWindowFullscreen(SDL_Window * window, Uint32 flags)
 void SDL_SetWindowSize(SDL_Window * window, int w, int h)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    if (window->surface != NULL)
-    {
-        SDL_FreeSurface(window->surface);
-    }
 
-    window->w = w;
-    window->h = h;
-    // window->surface = SDL_CreateRGBSurfaceWithFormat (window->flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
-    window->surface = SDL_SetVideoMode(w, h, 32, window->flags);
+    // do this if it actually changed for some reason
+    if (w != window->w || h != window->h)
+    {
+        if (window->surface != NULL)
+        {
+            SDL_FreeSurface(window->surface);
+        }
+
+        window->w = w;
+        window->h = h;
+        // window->surface = SDL_CreateRGBSurfaceWithFormat (window->flags, w, h, 8, SDL_PIXELFORMAT_RGBA32);
+        window->surface = SDL_SetVideoMode(w, h, 32, window->flags);
+    }
 }
 
 int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *pixels, int stride)
@@ -376,7 +401,6 @@ int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *
     // https://wiki.libsdl.org/SDL2/SDL_UpdateTexture
 
     // we have to support both SDL_PIXELFORMAT_RGB24 and SDL_PIXELFORMAT_BGR555
-    // TODO
 
     if (texture->format == SDL_PIXELFORMAT_RGB24)
     {
@@ -403,16 +427,10 @@ int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *
                 int g = (c >> 5) & 0x1F;
                 int b = c & 0x1F;
 
-                if (i==0 && x==0)
-                {
-                    // printf("P: %04X %02X %02X %02X\n", c, r, g, b);
-                }
-
-                tgt[x] = COLOR32(b*4, g*4, r*4, 255);
+                tgt[x] = COLOR32(b*8, g*8, r*8, 255);
             }
 
             tgt += texture->w;
-            // src += texture->w;
             src += stride / 2;
         }
     }
@@ -423,6 +441,7 @@ int SDL_UpdateTexture(SDL_Texture * texture, const SDL_Rect * rect, const void *
 
     return SDL_TRUE;
 }
+
 int SDL_RenderClear(SDL_Renderer * renderer)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
@@ -432,40 +451,581 @@ int SDL_RenderClear(SDL_Renderer * renderer)
     return SDL_TRUE;
 }
 
-int SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect)
+
+
+
+void
+SDL_RenderGetViewport(SDL_Renderer * renderer, SDL_Rect * rect)
 {
+    if (rect) {
+        rect->x = (int)(renderer->window->x / renderer->scale.x);
+        rect->y = (int)(renderer->window->y / renderer->scale.y);
+        rect->w = (int)(renderer->window->w / renderer->scale.x);
+        rect->h = (int)(renderer->window->h / renderer->scale.y);
+    }
+}
+
+
+/**
+ *  This is a semi-private blit function and it performs low-level surface
+ *  scaled blitting only.
+ */
+int
+SDL_LowerBlitScaled(SDL_Surface * src, SDL_Rect * srcrect,
+                SDL_Surface * dst, SDL_Rect * dstrect)
+{
+    /* Save off the original dst width, height */
+    int dstW = dstrect->w;
+    int dstH = dstrect->h;
+    SDL_Rect full_rect;
+    SDL_Rect final_dst = *dstrect;
+    SDL_Rect final_src = *srcrect;
+
+    /* Clip the dst surface to the dstrect */
+    full_rect.x = 0;
+    full_rect.y = 0;
+    full_rect.w = dst->w;
+    full_rect.h = dst->h;
+    if (!SDL_IntersectRect(&final_dst, &full_rect, &final_dst)) {
+        return 0;
+    }
+
+    /* Clip the src surface to the srcrect */
+    full_rect.x = 0;
+    full_rect.y = 0;
+    full_rect.w = src->w;
+    full_rect.h = src->h;
+    if (!SDL_IntersectRect(&final_src, &full_rect, &final_src)) {
+        return 0;
+    }
+
+    // stretch ?
+    return SDL_SoftStretch( src, &final_src, dst, &final_dst );
+
+    // return SDL_LowerBlit( src, &final_src, dst, &final_dst );
+}
+
+/*
+ * Set up a blit between two surfaces -- split into three parts:
+ * The upper part, SDL_UpperBlit(), performs clipping and rectangle
+ * verification.  The lower part is a pointer to a low level
+ * accelerated blitting function.
+ *
+ * These parts are separated out and each used internally by this
+ * library in the optimimum places.  They are exported so that if
+ * you know exactly what you are doing, you can optimize your code
+ * by calling the one(s) you need.
+ */
+int SDL_LowerBlit(SDL_Surface * src, SDL_Rect * srcrect, SDL_Surface * dst, SDL_Rect * dstrect)
+{
+    return SDL_LowerBlitScaled(src, srcrect, dst, dstrect);
+}
+
+int SDL_UpperBlit(SDL_Surface * src, const SDL_Rect * srcrect, SDL_Surface * dst, SDL_Rect * dstrect)
+{
+    SDL_Rect fulldst;
+    int srcx, srcy, w, h;
+
+    /* Make sure the surfaces aren't locked */
+    if (!src || !dst) {
+        return SDL_FALSE;
+    }
+
+    /* If the destination rectangle is NULL, use the entire dest surface */
+    if (dstrect == NULL) {
+        fulldst.x = fulldst.y = 0;
+        dstrect = &fulldst;
+    }
+
+    /* clip the source rectangle to the source surface */
+    if (srcrect) {
+        int maxw, maxh;
+
+        srcx = srcrect->x;
+        w = srcrect->w;
+        if (srcx < 0) {
+            w += srcx;
+            dstrect->x -= srcx;
+            srcx = 0;
+        }
+        maxw = src->w - srcx;
+        if (maxw < w)
+            w = maxw;
+
+        srcy = srcrect->y;
+        h = srcrect->h;
+        if (srcy < 0) {
+            h += srcy;
+            dstrect->y -= srcy;
+            srcy = 0;
+        }
+        maxh = src->h - srcy;
+        if (maxh < h)
+            h = maxh;
+
+    } else {
+        srcx = srcy = 0;
+        w = src->w;
+        h = src->h;
+    }
+
+    /* clip the destination rectangle against the clip rectangle */
+    {
+        SDL_Rect *clip = dstrect;
+        int dx, dy;
+
+        dx = clip->x - dstrect->x;
+        if (dx > 0) {
+            w -= dx;
+            dstrect->x += dx;
+            srcx += dx;
+        }
+        dx = dstrect->x + w - clip->x - clip->w;
+        if (dx > 0)
+            w -= dx;
+
+        dy = clip->y - dstrect->y;
+        if (dy > 0) {
+            h -= dy;
+            dstrect->y += dy;
+            srcy += dy;
+        }
+        dy = dstrect->y + h - clip->y - clip->h;
+        if (dy > 0)
+            h -= dy;
+    }
+
+    if (w > 0 && h > 0) {
+        SDL_Rect sr;
+        sr.x = srcx;
+        sr.y = srcy;
+        sr.w = dstrect->w = w;
+        sr.h = dstrect->h = h;
+        return SDL_LowerBlit(src, &sr, dst, dstrect);
+    }
+    dstrect->w = dstrect->h = 0;
+    return 0;
+}
+
+int
+SDL_UpperBlitScaled(SDL_Surface * src, const SDL_Rect * srcrect,
+              SDL_Surface * dst, SDL_Rect * dstrect)
+{
+    SDL_Rect final_src, final_dst, fulldst;
+
+    /* Make sure the surfaces aren't locked */
+    if (!src || !dst) {
+        return SDL_FALSE;
+    }
+
+    /* If the destination rectangle is NULL, use the entire dest surface */
+    if (dstrect == NULL) {
+        fulldst.x = fulldst.y = 0;
+        dstrect = &fulldst;
+    }
+
+    /* clip the source rectangle to the source surface */
+    if (srcrect) {
+        int maxw, maxh;
+
+        final_src.x = srcrect->x;
+        final_src.w = srcrect->w;
+        if (final_src.x < 0) {
+            final_src.w += final_src.x;
+            final_src.x = 0;
+        }
+        maxw = src->w - final_src.x;
+        if (maxw < final_src.w)
+            final_src.w = maxw;
+
+        final_src.y = srcrect->y;
+        final_src.h = srcrect->h;
+        if (final_src.y < 0) {
+            final_src.h += final_src.y;
+            final_src.y = 0;
+        }
+        maxh = src->h - final_src.y;
+        if (maxh < final_src.h)
+            final_src.h = maxh;
+
+    } else {
+        final_src.x = final_src.y = 0;
+        final_src.w = src->w;
+        final_src.h = src->h;
+    }
+
+    /* clip the destination rectangle against the clip rectangle */
+    if (dstrect) {
+        int maxw, maxh;
+
+        final_dst.x = dstrect->x;
+        final_dst.w = dstrect->w;
+        if (final_dst.x < 0) {
+            final_dst.w += final_dst.x;
+            final_dst.x = 0;
+        }
+        maxw = dst->w - final_dst.x;
+        if (maxw < final_dst.w)
+            final_dst.w = maxw;
+
+        final_dst.y = dstrect->y;
+        final_dst.h = dstrect->h;
+        if (final_dst.y < 0) {
+            final_dst.h += final_dst.y;
+            final_dst.y = 0;
+        }
+        maxh = dst->h - final_dst.y;
+        if (maxh < final_dst.h)
+            final_dst.h = maxh;
+    } else {
+        final_dst.x = final_dst.y = 0;
+        final_dst.w = dst->w;
+        final_dst.h = dst->h;
+    }
+
+    if (final_dst.w > 0 && final_dst.h > 0) {
+        return SDL_LowerBlitScaled(src, &final_src, dst, &final_dst);
+    }
+
+    return 0;
+}
+
+SDL_bool
+SDL_IntersectRect(const SDL_Rect * A, const SDL_Rect * B, SDL_Rect * result)
+{
+    int Amin, Amax, Bmin, Bmax;
+
+    if (!A || !B || !result) {
+        // TODO error message
+        return SDL_FALSE;
+    }
+
+    /* Special cases for empty rects */
+    if (SDL_RectEmpty(A) || SDL_RectEmpty(B)) {
+        return SDL_FALSE;
+    }
+
+    /* Horizontal intersection */
+    Amin = A->x;
+    Amax = Amin + A->w;
+    Bmin = B->x;
+    Bmax = Bmin + B->w;
+    if (Bmin > Amin)
+        Amin = Bmin;
+    result->x = Amin;
+    if (Bmax < Amax)
+        Amax = Bmax;
+    result->w = Amax - Amin;
+
+    /* Vertical intersection */
+    Amin = A->y;
+    Amax = Amin + A->h;
+    Bmin = B->y;
+    Bmax = Bmin + B->h;
+    if (Bmin > Amin)
+        Amin = Bmin;
+    result->y = Amin;
+    if (Bmax < Amax)
+        Amax = Bmax;
+    result->h = Amax - Amin;
+
+    return !SDL_RectEmpty(result);
+}
+
+
+static int renderer_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
+              const SDL_Rect * srcrect, const SDL_FRect * dstrect)
+{
+    SDL_Surface *surface = renderer->window->surface;
+    SDL_Surface *src = (SDL_Surface *) texture->surface;
+    SDL_Rect final_rect;
+
+    if (!surface) {
+        return -1;
+    }
+
+    if (renderer->window->x || renderer->window->y) {
+        final_rect.x = (int)(renderer->window->x + dstrect->x);
+        final_rect.y = (int)(renderer->window->y + dstrect->y);
+    } else {
+        final_rect.x = (int)dstrect->x;
+        final_rect.y = (int)dstrect->y;
+    }
+    final_rect.w = (int)dstrect->w;
+    final_rect.h = (int)dstrect->h;
+
+    if ( srcrect->w == final_rect.w && srcrect->h == final_rect.h ) {
+        return SDL_BlitSurface(src, srcrect, surface, &final_rect);
+    } else {
+        return SDL_BlitScaled(src, srcrect, surface, &final_rect);
+    }
+}
+
+static int GetScaleQuality(void)
+{
+    // nearest
+    return 0;
+
+    // bilinear ?
+    // return 1;
+}
+
+static int renderer_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
+                const SDL_Rect * srcrect, const SDL_FRect * dstrect,
+                const double angle, const SDL_FPoint * center, const SDL_RendererFlip flip)
+{
+    return renderer_RenderCopy(renderer, texture, srcrect, dstrect);
+}
+
+/* FULL:
+static int renderer_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
+                const SDL_Rect * srcrect, const SDL_FRect * dstrect,
+                const double angle, const SDL_FPoint * center, const SDL_RendererFlip flip)
+{
+    SDL_Surface *surface = renderer->window->surface;
+    SDL_Surface *src = (SDL_Surface *) texture->surface;
+    SDL_Rect final_rect, tmp_rect;
+    SDL_Surface *surface_rotated, *surface_scaled;
+    Uint32 colorkey;
+    int retval, dstwidth, dstheight, abscenterx, abscentery;
+    double cangle, sangle, px, py, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y;
+
+    if (!surface) {
+        return -1;
+    }
+
+    if (renderer->window->x || renderer->window->y) {
+        final_rect.x = (int)(renderer->window->x + dstrect->x);
+        final_rect.y = (int)(renderer->window->y + dstrect->y);
+    } else {
+        final_rect.x = (int)dstrect->x;
+        final_rect.y = (int)dstrect->y;
+    }
+    final_rect.w = (int)dstrect->w;
+    final_rect.h = (int)dstrect->h;
+
+    surface_scaled = SDL_CreateRGBSurface(SDL_SWSURFACE, final_rect.w, final_rect.h, src->format->BitsPerPixel,
+                                          src->format->Rmask, src->format->Gmask,
+                                          src->format->Bmask, src->format->Amask );
+    if (surface_scaled) {
+        SDL_GetColorKey(src, &colorkey);
+        SDL_SetColorKey(surface_scaled, SDL_TRUE, colorkey);
+        tmp_rect = final_rect;
+        tmp_rect.x = 0;
+        tmp_rect.y = 0;
+
+        retval = SDL_BlitScaled(src, srcrect, surface_scaled, &tmp_rect);
+        if (!retval) {
+            _rotozoomSurfaceSizeTrig(tmp_rect.w, tmp_rect.h, -angle, &dstwidth, &dstheight, &cangle, &sangle);
+            surface_rotated = _rotateSurface(surface_scaled, -angle, dstwidth/2, dstheight/2, GetScaleQuality(), flip & SDL_FLIP_HORIZONTAL, flip & SDL_FLIP_VERTICAL, dstwidth, dstheight, cangle, sangle);
+            if(surface_rotated) {
+                // Find out where the new origin is by rotating the four final_rect points around the center and then taking the extremes
+                abscenterx = final_rect.x + (int)center->x;
+                abscentery = final_rect.y + (int)center->y;
+                // Compensate the angle inversion to match the behaviour of the other backends
+                sangle = -sangle;
+
+                // Top Left
+                px = final_rect.x - abscenterx;
+                py = final_rect.y - abscentery;
+                p1x = px * cangle - py * sangle + abscenterx;
+                p1y = px * sangle + py * cangle + abscentery;
+
+                // Top Right
+                px = final_rect.x + final_rect.w - abscenterx;
+                py = final_rect.y - abscentery;
+                p2x = px * cangle - py * sangle + abscenterx;
+                p2y = px * sangle + py * cangle + abscentery;
+
+                // Bottom Left
+                px = final_rect.x - abscenterx;
+                py = final_rect.y + final_rect.h - abscentery;
+                p3x = px * cangle - py * sangle + abscenterx;
+                p3y = px * sangle + py * cangle + abscentery;
+
+                // Bottom Right
+                px = final_rect.x + final_rect.w - abscenterx;
+                py = final_rect.y + final_rect.h - abscentery;
+                p4x = px * cangle - py * sangle + abscenterx;
+                p4y = px * sangle + py * cangle + abscentery;
+
+                tmp_rect.x = (int)MIN(MIN(p1x, p2x), MIN(p3x, p4x));
+                tmp_rect.y = (int)MIN(MIN(p1y, p2y), MIN(p3y, p4y));
+                tmp_rect.w = dstwidth;
+                tmp_rect.h = dstheight;
+
+                retval = SDL_BlitSurface(surface_rotated, NULL, surface, &tmp_rect);
+                SDL_FreeSurface(surface_scaled);
+                SDL_FreeSurface(surface_rotated);
+                return retval;
+            }
+        }
+        return retval;
+    }
+
+    return -1;
+}
+*/
+
+int
+SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
+               const SDL_Rect * srcrect, const SDL_Rect * dstrect)
+{
+    SDL_Rect real_srcrect = { 0, 0, 0, 0 };
+    SDL_Rect real_dstrect = { 0, 0, 0, 0 };
+    SDL_FRect frect;
+
+    real_srcrect.x = 0;
+    real_srcrect.y = 0;
+    real_srcrect.w = texture->w;
+    real_srcrect.h = texture->h;
+    if (srcrect) {
+        if (!SDL_IntersectRect(srcrect, &real_srcrect, &real_srcrect)) {
+            return 0;
+        }
+    }
+
+    SDL_RenderGetViewport(renderer, &real_dstrect);
+    real_dstrect.x = 0;
+    real_dstrect.y = 0;
+    if (dstrect) {
+        if (!SDL_IntersectRect(dstrect, &real_dstrect, &real_dstrect)) {
+            return 0;
+        }
+        /* Clip srcrect by the same amount as dstrect was clipped */
+        if (dstrect->w != real_dstrect.w) {
+            int deltax = (real_dstrect.x - dstrect->x);
+            int deltaw = (real_dstrect.w - dstrect->w);
+            real_srcrect.x += (deltax * real_srcrect.w) / dstrect->w;
+            real_srcrect.w += (deltaw * real_srcrect.w) / dstrect->w;
+        }
+        if (dstrect->h != real_dstrect.h) {
+            int deltay = (real_dstrect.y - dstrect->y);
+            int deltah = (real_dstrect.h - dstrect->h);
+            real_srcrect.y += (deltay * real_srcrect.h) / dstrect->h;
+            real_srcrect.h += (deltah * real_srcrect.h) / dstrect->h;
+        }
+    }
+
+    frect.x = real_dstrect.x * renderer->scale.x;
+    frect.y = real_dstrect.y * renderer->scale.y;
+    frect.w = real_dstrect.w * renderer->scale.x;
+    frect.h = real_dstrect.h * renderer->scale.y;
+
+    return renderer_RenderCopy(renderer, texture, &real_srcrect, &frect);
+}
+
+
+
+int
+SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
+               const SDL_Rect * srcrect, const SDL_Rect * dstrect,
+               const double angle, const SDL_Point *center, const SDL_RendererFlip flip)
+{
+    SDL_Rect real_srcrect = { 0, 0, 0, 0 };
+    SDL_Rect real_dstrect = { 0, 0, 0, 0 };
+    SDL_Point real_center;
+    SDL_FRect frect;
+    SDL_FPoint fcenter;
+
+    real_srcrect.x = 0;
+    real_srcrect.y = 0;
+    real_srcrect.w = texture->w;
+    real_srcrect.h = texture->h;
+    if (srcrect) {
+        if (!SDL_IntersectRect(srcrect, &real_srcrect, &real_srcrect)) {
+            return 0;
+        }
+    }
+
+    /* We don't intersect the dstrect with the viewport as RenderCopy does because of potential rotation clipping issues... TODO: should we? */
+    if (dstrect) {
+        real_dstrect = *dstrect;
+    } else {
+        SDL_RenderGetViewport(renderer, &real_dstrect);
+        real_dstrect.x = 0;
+        real_dstrect.y = 0;
+    }
+
+
+    if(center) real_center = *center;
+    else {
+        real_center.x = real_dstrect.w/2;
+        real_center.y = real_dstrect.h/2;
+    }
+
+    frect.x = real_dstrect.x * renderer->scale.x;
+    frect.y = real_dstrect.y * renderer->scale.y;
+    frect.w = real_dstrect.w * renderer->scale.x;
+    frect.h = real_dstrect.h * renderer->scale.y;
+
+    fcenter.x = real_center.x * renderer->scale.x;
+    fcenter.y = real_center.y * renderer->scale.y;
+
+    return renderer_RenderCopyEx(renderer, texture, &real_srcrect, &frect, angle, &fcenter, flip);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int SDL_RenderCopy_val(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect)
+{
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
     if (renderer != NULL && renderer->window != NULL && renderer->window->surface != NULL &&
         texture != NULL && texture->surface != NULL)
     {
-        /*
-        printf("T: %d %d   S: %d %d    DST: %d %d %d %dg\n",
+        /**/
+        printf("T: %d %d   S: %d %d    DST:   %d %d    %d %d\n",
                renderer->window->surface->w, renderer->window->surface->h,
                texture->surface->w, texture->surface->h,
                dstrect->x, dstrect->y, dstrect->w, dstrect->h);
-        */
+        /**/
 
-        // TODO: must scale texture to render as dstrect says
+        // TODO: must move/scale texture to render as dstrect says
 
         uint32_t *t = (uint32_t *)renderer->window->surface->pixels;
         uint32_t *s = (uint32_t *)texture->surface->pixels;
 
-        for (int y=0; y<renderer->window->surface->h; y++)
+        if (renderer->window->surface->w == texture->surface->w && renderer->window->surface->h == texture->surface->h &&
+            renderer->window->surface->w == dstrect->w && renderer->window->surface->h == dstrect->h)
         {
-            for (int x=0; x<renderer->window->surface->w; x++)
-            {
-                t[ (y*renderer->window->surface->w) + x ] = s[(y*texture->surface->w) + x];
-            }
+            // they all matches, fast memcpy
+            memcpy(t, s, renderer->window->surface->w*renderer->window->surface->h*4);
+        }
+        else
+        {
+            // hard and horrible stretch...
+
+            /*
+                for (int y=0; y<renderer->window->surface->h; y++)
+                {
+                    for (int x=0; x<renderer->window->surface->w; x++)
+                    {
+                        t[ (y*renderer->window->surface->w) + x ] = s[(y*texture->surface->w) + x];
+                    }
+                }
+            */
         }
 
-        // memcpy(renderer->window->surface->pixels, texture->surface->pixels, renderer->window->surface->w*renderer->window->surface->h*4);
     }
     return SDL_TRUE;
 }
 
-int SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
+int SDL_RenderCopyEx_val(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect,
                    const double angle, const SDL_Point *center, const SDL_RendererFlip flip)
 {
-    return SDL_RenderCopy(renderer, texture, srcrect, dstrect);
+    LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
+    return SDL_RenderCopy_val(renderer, texture, srcrect, dstrect);
 }
 
 int SDL_RenderCopy_sus(SDL_Renderer * renderer, SDL_Texture * texture, const SDL_Rect * srcrect, const SDL_Rect * dstrect)
@@ -595,19 +1155,19 @@ int SDL_RenderSetScale(SDL_Renderer * renderer, float scaleX, float scaleY)
 void SDL_GameControllerClose(SDL_GameController *gamecontroller)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    free(gamecontroller);
+    LOG_FREE(gamecontroller);
 }
 SDL_Joystick* SDL_GameControllerGetJoystick(SDL_GameController *gamecontroller)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    SDL_Joystick *su = (SDL_Joystick *)malloc(sizeof(SDL_Joystick));
+    SDL_Joystick *su = (SDL_Joystick *)LOG_MALLOC(sizeof(SDL_Joystick), su);
     su->gamecontroller = gamecontroller;
     return su;
 }
 SDL_GameController* SDL_GameControllerOpen(int joystick_index)
 {
     LOGG_C( "KLOG %s %d %s", __FUNCTION__, __LINE__, __FILE__);
-    SDL_GameController *su = (SDL_GameController *)malloc(sizeof(SDL_GameController));
+    SDL_GameController *su = (SDL_GameController *)LOG_MALLOC(sizeof(SDL_GameController), su);
     su->joystick_index = joystick_index;
     return su;
 }

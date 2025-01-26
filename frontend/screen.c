@@ -172,21 +172,23 @@ void psxe_screen_update(psxe_screen_t* screen) {
     void* display_buf = screen->debug_mode ?
         psx_get_vram(screen->psx) : psx_get_display_buffer(screen->psx);
 
-    // printf("res=(%u,%u) off=(%u,%u) disp=(%u,%u-%u,%u) draw=(%u,%u-%u,%u) vres=%u\n",
-    //     screen->texture_width,
-    //     screen->texture_height,
-    //     screen->psx->gpu->disp_x,
-    //     screen->psx->gpu->disp_y,
-    //     screen->psx->gpu->disp_x1,
-    //     screen->psx->gpu->disp_y1,
-    //     screen->psx->gpu->disp_x2,
-    //     screen->psx->gpu->disp_y2,
-    //     screen->psx->gpu->draw_x1,
-    //     screen->psx->gpu->draw_y1,
-    //     screen->psx->gpu->draw_x2,
-    //     screen->psx->gpu->draw_y2,
-    //     screen->psx->gpu->disp_y2 - screen->psx->gpu->disp_y1
-    // );
+    /*
+    printf("res=(%u,%u) off=(%u,%u) disp=(%u,%u-%u,%u) draw=(%u,%u-%u,%u) vres=%u\n",
+        screen->texture_width,
+        screen->texture_height,
+        screen->psx->gpu->disp_x,
+        screen->psx->gpu->disp_y,
+        screen->psx->gpu->disp_x1,
+        screen->psx->gpu->disp_y1,
+        screen->psx->gpu->disp_x2,
+        screen->psx->gpu->disp_y2,
+        screen->psx->gpu->draw_x1,
+        screen->psx->gpu->draw_y1,
+        screen->psx->gpu->draw_x2,
+        screen->psx->gpu->draw_y2,
+        screen->psx->gpu->disp_y2 - screen->psx->gpu->disp_y1
+    );
+    */
 
     if ((screen->psx->gpu->disp_y + screen->texture_height) > 512)
         display_buf = psx_get_vram(screen->psx);
@@ -435,21 +437,23 @@ void psxe_screen_destroy(psxe_screen_t* screen) {
 void psxe_gpu_dmode_event_cb(psx_gpu_t* gpu) {
     psxe_screen_t* screen = gpu->udata[0];
 
-    // printf("res=(%u,%u) off=(%u,%u) disp=(%u,%u-%u,%u) draw=(%u,%u-%u,%u) vres=%u\n",
-    //     screen->texture_width,
-    //     screen->texture_height,
-    //     screen->psx->gpu->disp_x,
-    //     screen->psx->gpu->disp_y,
-    //     screen->psx->gpu->disp_x1,
-    //     screen->psx->gpu->disp_y1,
-    //     screen->psx->gpu->disp_x2,
-    //     screen->psx->gpu->disp_y2,
-    //     screen->psx->gpu->draw_x1,
-    //     screen->psx->gpu->draw_y1,
-    //     screen->psx->gpu->draw_x2,
-    //     screen->psx->gpu->draw_y2,
-    //     screen->psx->gpu->disp_y2 - screen->psx->gpu->disp_y1
-    // );
+    /*
+    printf("res=(%u,%u) off=(%u,%u) disp=(%u,%u-%u,%u) draw=(%u,%u-%u,%u) vres=%u\n",
+        screen->texture_width,
+        screen->texture_height,
+        screen->psx->gpu->disp_x,
+        screen->psx->gpu->disp_y,
+        screen->psx->gpu->disp_x1,
+        screen->psx->gpu->disp_y1,
+        screen->psx->gpu->disp_x2,
+        screen->psx->gpu->disp_y2,
+        screen->psx->gpu->draw_x1,
+        screen->psx->gpu->draw_y1,
+        screen->psx->gpu->draw_x2,
+        screen->psx->gpu->draw_y2,
+        screen->psx->gpu->disp_y2 - screen->psx->gpu->disp_y1
+    );
+    */
 
     screen->format = psx_get_display_format(screen->psx) ?
         SDL_PIXELFORMAT_RGB24 : SDL_PIXELFORMAT_BGR555;

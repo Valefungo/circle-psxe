@@ -668,6 +668,11 @@ void cdrom_write_cmd(psx_cdrom_t* cdrom, uint8_t data) {
     if (cdrom->state == CD_STATE_READ)
         cdrom->busy = 1;
 
+    if (queue_is_empty(cdrom->parameters)) {
+        return;
+    }
+
+    /*
     printf("cdrom: %-16s (%02x) params: ", cdrom_cmd_names[data], data);
 
     if (queue_is_empty(cdrom->parameters)) {
@@ -680,6 +685,7 @@ void cdrom_write_cmd(psx_cdrom_t* cdrom, uint8_t data) {
         printf("%02x ", cdrom->parameters->buf[i]);
 
     putchar('\n');
+    */
 
     return;
 }

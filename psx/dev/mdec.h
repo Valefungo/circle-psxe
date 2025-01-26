@@ -9,6 +9,8 @@
 #define PSX_MDEC_BEGIN   0x1f801820
 #define PSX_MDEC_END     0x1f801827
 
+#define PSX_MDEC_STATIC_SIZE  (1024*1024)
+
 #define MDEC_SCALE_TABLE_SIZE 64
 #define MDEC_QUANT_TABLE_SIZE 64
 
@@ -51,11 +53,13 @@ typedef struct {
     int data_remaining;
     int index;
 
-    uint32_t* input;
+    // uint32_t* input;
+    uint32_t input[PSX_MDEC_STATIC_SIZE];
     int input_index;
     size_t input_size;
 
-    uint8_t* output;
+    // uint8_t* output;
+    uint8_t output[PSX_MDEC_STATIC_SIZE];
     int output_index;
     uint32_t output_words_remaining;
 
