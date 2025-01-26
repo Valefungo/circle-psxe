@@ -233,14 +233,21 @@ typedef struct SDL_Joystick {
 typedef int SDL_GameControllerID;
 typedef int SDL_JoystickID;
 
-typedef int SDL_AudioDeviceID;
-typedef struct SDL_AudioSpec {
-	int freq;
-	int format;
-	int channels;
-	int samples;
-	void *callback;
-	void *userdata;
+typedef Uint16 SDL_AudioFormat;
+typedef Uint32 SDL_AudioDeviceID;
+typedef void (*SDL_AudioCallback) (void *userdata, Uint8 * stream, int len);
+
+typedef struct SDL_AudioSpec
+{
+    int freq;                   /**< DSP frequency -- samples per second */
+    SDL_AudioFormat format;     /**< Audio data format */
+    Uint8 channels;             /**< Number of channels: 1 mono, 2 stereo */
+    Uint8 silence;              /**< Audio buffer silence value (calculated) */
+    Uint16 samples;             /**< Audio buffer size in sample FRAMES (total samples divided by channel count) */
+    Uint16 padding;             /**< Necessary for some compile environments */
+    Uint32 size;                /**< Audio buffer size in bytes (calculated) */
+    SDL_AudioCallback callback; /**< Callback that feeds the audio device (NULL to use SDL_QueueAudio()). */
+    void *userdata;             /**< Userdata passed to callback (ignored for NULL callbacks). */
 } SDL_AudioSpec;
 
 #define SDL_RectEmpty(X)    ((!(X)) || ((X)->w <= 0) || ((X)->h <= 0))
